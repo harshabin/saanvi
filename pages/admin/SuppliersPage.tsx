@@ -1,8 +1,27 @@
-
-import React from 'react';
-import { MOCK_SUPPLIERS } from '../../constants';
+import React, { useState, useEffect } from 'react';
+import { getSuppliers } from '../../services/mockApiService';
+import { Supplier } from '../../types';
+import toast from 'react-hot-toast';
 
 const SuppliersPage: React.FC = () => {
+    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchSuppliers = async () => {
+            setIsLoading(true);
+            try {
+                const data = await getSuppliers();
+                setSuppliers(data);
+            } catch (error) {
+                toast.error("Failed to load suppliers.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchSuppliers();
+    }, []);
+
     return (
         <div>
             <h1 className="text-2xl font-bold text-gray-800 mb-6">Supplier Management</h1>
@@ -17,14 +36,22 @@ const SuppliersPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {MOCK_SUPPLIERS.map(supplier => (
-                            <tr key={supplier.id}>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{supplier.name}</p></td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{supplier.contactPerson}</p></td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{supplier.email}</p></td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{supplier.phone}</p></td>
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan={4} className="text-center py-10 text-gray-500">
+                                    Loading suppliers...
+                                </td>
                             </tr>
-                        ))}
+                        ) : (
+                            suppliers.map(supplier => (
+                                <tr key={supplier.id}>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{supplier.name}</p></td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{supplier.contactPerson}</p></td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{supplier.email}</p></td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{supplier.phone}</p></td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>

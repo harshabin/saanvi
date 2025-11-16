@@ -1,10 +1,9 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 
 import { CartItem, Product } from './types';
-import { MOCK_PRODUCTS } from './constants';
+import { getProducts } from './services/mockApiService';
 
 import StoreLayout from './components/StoreLayout';
 import HomePage from './pages/store/HomePage';
@@ -21,7 +20,24 @@ import SuppliersPage from './pages/admin/SuppliersPage';
 
 function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchProducts = async () => {
+    try {
+      const fetchedProducts = await getProducts();
+      setProducts(fetchedProducts);
+    } catch (error) {
+      toast.error("Failed to load products.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetchProducts();
+  }, []);
 
   const addToCart = (product: Product, quantity: number) => {
     setCart(prevCart => {
@@ -55,6 +71,14 @@ function App() {
 
   const cartItemCount = cart.reduce((count, item) => count + item.quantity, 0);
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-neutral-light">
+        <div className="w-16 h-16 border-4 border-t-transparent border-primary rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-neutral-light min-h-screen text-neutral-dark font-sans">
       <Toaster position="top-center" reverseOrder={false} />
@@ -64,14 +88,14 @@ function App() {
             <Route index element={<HomePage products={products} addToCart={addToCart} />} />
             <Route path="product/:id" element={<ProductDetailPage products={products} addToCart={addToCart} />} />
             <Route path="cart" element={<CartPage cart={cart} updateCartQuantity={updateCartQuantity} />} />
-            <Route path="checkout" element={<CheckoutPage cart={cart} clearCart={clearCart} />} />
+            <Route path="checkout" element={<CheckoutPage cart={cart} clearCart={clearCart} onOrderPlaced={fetchProducts} />} />
             <Route path="style-advisor" element={<StyleAdvisorPage products={products} />} />
           </Route>
 
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="inventory" element={<InventoryPage products={products} setProducts={setProducts} />} />
+            <Route path="inventory" element={<InventoryPage />} />
             <Route path="orders" element={<OrdersPage />} />
             <Route path="suppliers" element={<SuppliersPage />} />
           </Route>

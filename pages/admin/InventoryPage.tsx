@@ -1,18 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Product } from '../../types';
-
-interface InventoryPageProps {
-    products: Product[];
-    setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
-}
+import { getProducts, addProduct, updateProduct, deleteProduct } from '../../services/mockApiService';
 
 const emptyProduct: Omit<Product, 'id'> = { name: '', description: '', price: 0, imageUrl: '', category: '', stock: 0 };
 
-const InventoryPage: React.FC<InventoryPageProps> = ({ products, setProducts }) => {
+const InventoryPage: React.FC = () => {
+    const [products, setProducts] = useState<Product[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | Omit<Product, 'id'>>(emptyProduct);
     const isEditing = 'id' in editingProduct;
+
+    const fetchProducts = async () => {
+        setIsLoading(true);
+        try {
+            const data = await getProducts();
+            setProducts(data);
+        } catch (error) {
+            toast.error("Failed to fetch products.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchProducts();
+    }, []);
 
     const openModal = (product?: Product) => {
         setEditingProduct(product || emptyProduct);
@@ -24,27 +38,36 @@ const InventoryPage: React.FC<InventoryPageProps> = ({ products, setProducts }) 
         setEditingProduct(emptyProduct);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!editingProduct.name || !editingProduct.category || editingProduct.price <= 0 || editingProduct.stock < 0) {
             toast.error('Please fill in all required fields with valid values.');
             return;
         }
 
-        if (isEditing) {
-            setProducts(products.map(p => p.id === (editingProduct as Product).id ? (editingProduct as Product) : p));
-            toast.success('Product updated successfully!');
-        } else {
-            const newProduct = { ...editingProduct, id: Math.max(0, ...products.map(p => p.id)) + 1 };
-            setProducts([...products, newProduct]);
-            toast.success('Product added successfully!');
+        try {
+            if (isEditing) {
+                await updateProduct(editingProduct as Product);
+                toast.success('Product updated successfully!');
+            } else {
+                await addProduct(editingProduct as Omit<Product, 'id'>);
+                toast.success('Product added successfully!');
+            }
+            closeModal();
+            await fetchProducts();
+        } catch (error) {
+            toast.error('Failed to save product.');
         }
-        closeModal();
     };
 
-    const handleDelete = (id: number) => {
+    const handleDelete = async (id: number) => {
         if (window.confirm('Are you sure you want to delete this product?')) {
-            setProducts(products.filter(p => p.id !== id));
-            toast.success('Product deleted successfully!');
+            try {
+                await deleteProduct(id);
+                toast.success('Product deleted successfully!');
+                await fetchProducts();
+            } catch (error) {
+                toast.error('Failed to delete product.');
+            }
         }
     };
 
@@ -67,7 +90,13 @@ const InventoryPage: React.FC<InventoryPageProps> = ({ products, setProducts }) 
                         </tr>
                     </thead>
                     <tbody>
-                        {products.length === 0 ? (
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan={5} className="text-center py-10 text-gray-500">
+                                    Loading inventory...
+                                </td>
+                            </tr>
+                        ) : products.length === 0 ? (
                             <tr>
                                 <td colSpan={5} className="text-center py-10 text-gray-500">
                                     No products found. Add one to get started!

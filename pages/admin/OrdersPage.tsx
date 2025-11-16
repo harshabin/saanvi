@@ -1,18 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { MOCK_ORDERS } from '../../constants';
+import { getOrders, updateOrderStatus } from '../../services/mockApiService';
 import { Order } from '../../types';
 
 const OrdersPage: React.FC = () => {
-    const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const handleStatusChange = (orderId: string, newStatus: Order['status']) => {
-        setOrders(prevOrders =>
-            prevOrders.map(order =>
-                order.id === orderId ? { ...order, status: newStatus } : order
-            )
-        );
-        toast.success(`Order ${orderId} status updated to ${newStatus}.`);
+    const fetchOrders = async () => {
+        setIsLoading(true);
+        try {
+            const data = await getOrders();
+            setOrders(data);
+        } catch (error) {
+            toast.error("Failed to fetch orders.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchOrders();
+    }, []);
+
+    const handleStatusChange = async (orderId: string, newStatus: Order['status']) => {
+        try {
+            await updateOrderStatus(orderId, newStatus);
+            setOrders(prevOrders =>
+                prevOrders.map(order =>
+                    order.id === orderId ? { ...order, status: newStatus } : order
+                )
+            );
+            toast.success(`Order ${orderId} status updated to ${newStatus}.`);
+        } catch (error) {
+            toast.error("Failed to update order status.");
+        }
     };
 
     const getStatusStyles = (status: Order['status']) => {
@@ -39,25 +61,39 @@ const OrdersPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {orders.map(order => (
-                            <tr key={order.id}>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{order.id}</p></td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{order.customerName}</p></td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{order.date}</p></td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">${order.total.toFixed(2)}</p></td>
-                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    <select
-                                        value={order.status}
-                                        onChange={(e) => handleStatusChange(order.id, e.target.value as Order['status'])}
-                                        className={`w-full p-2 rounded-full appearance-none text-center font-semibold border-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 ${getStatusStyles(order.status)}`}
-                                    >
-                                        <option value="Pending">Pending</option>
-                                        <option value="Shipped">Shipped</option>
-                                        <option value="Delivered">Delivered</option>
-                                    </select>
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan={5} className="text-center py-10 text-gray-500">
+                                    Loading orders...
                                 </td>
                             </tr>
-                        ))}
+                        ) : orders.length === 0 ? (
+                             <tr>
+                                <td colSpan={5} className="text-center py-10 text-gray-500">
+                                    No orders found.
+                                </td>
+                            </tr>
+                        ) : (
+                            orders.map(order => (
+                                <tr key={order.id}>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap font-medium">{order.id}</p></td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{order.customerName}</p></td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{order.date}</p></td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">${order.total.toFixed(2)}</p></td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                        <select
+                                            value={order.status}
+                                            onChange={(e) => handleStatusChange(order.id, e.target.value as Order['status'])}
+                                            className={`w-full p-2 rounded-full appearance-none text-center font-semibold border-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 ${getStatusStyles(order.status)}`}
+                                        >
+                                            <option value="Pending">Pending</option>
+                                            <option value="Shipped">Shipped</option>
+                                            <option value="Delivered">Delivered</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
